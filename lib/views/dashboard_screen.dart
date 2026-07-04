@@ -2,12 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:battery_plus/battery_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../providers/battery_provider.dart';
 import '../providers/settings_provider.dart';
 import 'settings_screen.dart';
+import '../main.dart'; // 🔴 initializeService() কল করার জন্য main.dart ইম্পোর্ট করা হলো
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+
+  @override
+  void initState() {
+    super.initState();
+    // 🔴 UI সম্পূর্ণ রেন্ডার হওয়ার পর পারমিশন এবং সার্ভিস চালু করবে (ডেডলক ফিক্স)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initAppSafely();
+    });
+  }
+
+  Future<void> _initAppSafely() async {
+    try {
+      // পারমিশন চেক (UI ব্লক করবে না)
+      if (await Permission.notification.isDenied) {
+        await Permission.notification.request();
+      }
+      if (await Permission.ignoreBatteryOptimizations.isDenied) {
+        await Permission.ignoreBatteryOptimizations.request();
+      }
+
+      // পারমিশন পাওয়ার পর ব্যাকগ্রাউন্ড সার্ভিস স্টার্ট হবে
+      await initializeService();
+    } catch (e) {
+      debugPrint("Service Initialization Error: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +75,7 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 10),
               _buildBatteryIndicator(batteryLevel, isCharging),
               const SizedBox(height: 30),
-              // রিয়েল-টাইম ডাটাগুলো এখানে পাঠানো হচ্ছে
+              // রিয়েল-টাইম ডাটাগুলো এখানে পাঠানো হচ্ছে
               _buildStatusCards(batteryProvider, isCharging),
               const SizedBox(height: 30),
               _buildProfileSummaryCard(settingsProvider),
@@ -81,16 +115,16 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // রিয়েল-টাইম স্ট্যাটাস কার্ড লজিক
+  // রিয়েল-টাইম স্ট্যাটাস কার্ড লজিক
   Widget _buildStatusCards(BatteryProvider provider, bool isCharging) {
     // ভোল্টেজ লজিক: চার্জে থাকলে বর্তমান ভোল্টেজ, না থাকলে লাস্ট সেভ করা ভোল্টেজ
     int displayVoltage = isCharging ? provider.currentVoltage : provider.lastChargingVoltage;
     String voltageStr = displayVoltage > 0 ? "${(displayVoltage / 1000).toStringAsFixed(1)} V" : "-- V";
 
-    // টেম্পারেচার লজিক (রিয়েল টাইম)
+    // টেম্পারেচার লজিক (রিয়েল টাইম)
     String tempStr = provider.temperature > 0 ? "${provider.temperature.toStringAsFixed(1)}°C" : "--°C";
 
-    // টেম্পারেচার অনুযায়ী কালার (বেশি গরম হলে লাল)
+    // টেম্পারেচার অনুযায়ী কালার (বেশি গরম হলে লাল)
     Color tempColor = provider.temperature >= 40.0 ? Colors.redAccent : Colors.amberAccent;
 
     return Row(
@@ -219,8 +253,7 @@ class DashboardScreen extends StatelessWidget {
     } else if (soundType == 'tts') {
       soundTitle = "Text to Speech";
       soundDetail = 'Saying: "${settings.getSetting(modeKey, 'ttsText', '')}"';
-    }
-    else {
+    } else {
       // Default Ringtone এর ক্ষেত্রে সিলেক্ট করা নাম দেখানো
       soundTitle = "Built-in Sound";
       String defaultSound = settings.getSetting(modeKey, 'defaultSound', 'aabe_saale.mp3');
@@ -246,8 +279,6 @@ class DashboardScreen extends StatelessWidget {
       else if (defaultSound == 'system_phar_denge.mp3') soundDetail = "System Phar Denge";
       else if (defaultSound == 'todowww.mp3') soundDetail = "Todowww";
       else if (defaultSound == 'uia.mp3') soundDetail = "UIA";
-
-
       else soundDetail = defaultSound;
     }
 

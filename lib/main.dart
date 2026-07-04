@@ -4,17 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'providers/battery_provider.dart';
 import 'providers/settings_provider.dart';
 import 'views/dashboard_screen.dart';
 import 'services/background_logic.dart';
 
-void main() async {
+// 🔴 main ফাংশন এখন একদম ফ্রি! স্প্ল্যাশ স্ক্রিনে আটকাবে না।
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // অ্যাপ ওপেন হওয়ার আগেই ব্যাকগ্রাউন্ড সার্ভিস চেক করবে
-  await initializeService();
 
   runApp(
     MultiProvider(
@@ -42,8 +39,7 @@ class MyApp extends StatelessWidget {
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
 
-  // 🔴 স্প্ল্যাশ স্ক্রিনে আটকে থাকার (Hang) সমস্যার ১০০% সমাধান:
-  // সার্ভিস যদি আগে থেকেই চলতে থাকে, তবে আর নতুন করে কনফিগার করবে না। সরাসরি রিটার্ন করে অ্যাপ ওপেন করে দেবে।
+  // সার্ভিস যদি আগে থেকেই চলতে থাকে, তবে আর নতুন করে কনফিগার করবে না।
   if (await service.isRunning()) {
     return;
   }
@@ -67,17 +63,11 @@ Future<void> initializeService() async {
   );
 
   await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      .resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
-  // পারমিশন আগে থেকে দেওয়া আছে কি না তা চেক করে তারপর চাইবে (যাতে স্ক্রিন ব্লক না হয়)
-  if (await Permission.notification.isDenied) {
-    await Permission.notification.request();
-  }
-
-  if (await Permission.ignoreBatteryOptimizations.isDenied) {
-    await Permission.ignoreBatteryOptimizations.request();
-  }
+  // 🔴 পারমিশন রিকোয়েস্ট এখান থেকে সরিয়ে DashboardScreen-এ নিয়ে যাওয়া হয়েছে।
 
   await service.configure(
     androidConfiguration: AndroidConfiguration(
@@ -105,7 +95,8 @@ void onStart(ServiceInstance service) async {
   }
 
   // ফিক্সড (Un-swipeable) নোটিফিকেশন পুশ করা
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  FlutterLocalNotificationsPlugin();
   flutterLocalNotificationsPlugin.show(
     888,
     'Battery System Active',
